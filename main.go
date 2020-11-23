@@ -51,7 +51,9 @@ func HealthHandler(w http.ResponseWriter, r *http.Request) {
 func ExpandHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var req ExpandRequest
+	req := ExpandRequest{
+		Options: expand.GetDefaultExpansionOptions(),
+	}
 
 	q, _ := ioutil.ReadAll(r.Body)
 	json.Unmarshal(q, &req)
