@@ -1,22 +1,25 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
-	"os/signal"
-	"time"
 
 	"github.com/gorilla/mux"
 	expand "github.com/openvenues/gopostal/expand"
 	parser "github.com/openvenues/gopostal/parser"
 )
 
-type Request struct {
+type ExpandRequest struct {
 	Query string `json:"query"`
+	Options expand.ExpandOptions `json:"options,omitempty"`
+}
+
+type ParseRequest struct {
+	Query string `json:"query"`
+	Options parser.ParserOptions `json:"options,omitempty"`
 }
 
 func main() {
@@ -30,33 +33,14 @@ func main() {
 	}
 	listenSpec := fmt.Sprintf("%s:%s", host, port)
 
-	certFile := os.Getenv("SSL_CERT_FILE")
-	keyFile := os.Getenv("SSL_KEY_FILE")
-
 	router := mux.NewRouter()
 	router.HandleFunc("/health", HealthHandler).Methods("GET")
 	router.HandleFunc("/expand", ExpandHandler).Methods("POST")
 	router.HandleFunc("/parser", ParserHandler).Methods("POST")
 
 	s := &http.Server{Addr: listenSpec, Handler: router}
-	go func() {
-		if certFile != "" && keyFile != "" {
-			fmt.Printf("listening on https://%s\n", listenSpec)
-			s.ListenAndServeTLS(certFile, keyFile)
-		} else {
-			fmt.Printf("listening on http://%s\n", listenSpec)
-			s.ListenAndServe()
-		}
-	}()
-
-	stop := make(chan os.Signal)
-	signal.Notify(stop, os.Interrupt)
-
-	<-stop
-	fmt.Println("\nShutting down the server...")
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	s.Shutdown(ctx)
-	fmt.Println("Server stopped")
+	fmt.Printf("Listening on http://%s\n", listenSpec)
+	s.ListenAndServe()
 }
 
 func HealthHandler(w http.ResponseWriter, r *http.Request) {
@@ -67,12 +51,12 @@ func HealthHandler(w http.ResponseWriter, r *http.Request) {
 func ExpandHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var req Request
+	var req ExpandRequest
 
 	q, _ := ioutil.ReadAll(r.Body)
 	json.Unmarshal(q, &req)
 
-	expansions := expand.ExpandAddress(req.Query)
+	expansions := expand.ExpandAddressOptions(req.Query, req.Options)
 
 	expansionThing, _ := json.Marshal(expansions)
 	w.Write(expansionThing)
@@ -81,12 +65,12 @@ func ExpandHandler(w http.ResponseWriter, r *http.Request) {
 func ParserHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var req Request
+	var req ParseRequest
 
 	q, _ := ioutil.ReadAll(r.Body)
 	json.Unmarshal(q, &req)
 
-	parsed := parser.ParseAddress(req.Query)
+	parsed := parser.ParseAddressOptions(req.Query, req.Options)
 	parseThing, _ := json.Marshal(parsed)
 	w.Write(parseThing)
 }
