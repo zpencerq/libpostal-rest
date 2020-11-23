@@ -13,6 +13,19 @@ import (
 	parser "github.com/openvenues/gopostal/parser"
 )
 
+var (
+	DefaultExpansionOptions expand.ExpandOptions
+	DefaultParserOptions    parser.ParserOptions
+)
+
+func init() {
+	DefaultExpansionOptions = expand.GetDefaultExpansionOptions()
+	DefaultExpansionOptions.Languages = []string{"en"}
+
+	DefaultParserOptions.Language = "en"
+	DefaultParserOptions.Country = "us"
+}
+
 type ExpandRequest struct {
 	Query             string               `json:"query"`
 	AddressComponents []string             `json:"address_components,omitempty"`
@@ -106,7 +119,7 @@ func ExpandHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	req := ExpandRequest{
-		Options: expand.GetDefaultExpansionOptions(),
+		Options: DefaultExpansionOptions,
 	}
 
 	q, _ := ioutil.ReadAll(r.Body)
@@ -125,7 +138,9 @@ func ExpandHandler(w http.ResponseWriter, r *http.Request) {
 func ParserHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var req ParseRequest
+	req := ParseRequest{
+		Options: DefaultParserOptions,
+	}
 
 	q, _ := ioutil.ReadAll(r.Body)
 	json.Unmarshal(q, &req)
